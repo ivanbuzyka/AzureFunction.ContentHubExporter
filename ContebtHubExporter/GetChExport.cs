@@ -49,11 +49,15 @@ namespace ContebtHubExporter
                 log.LogInformation($"Sent first request, location header is: {downloadOrderLocation}");
 
                 // check for "status": "Completed" before trying to download
-                var retriesCount = 5;
+                
+                // increase retriesCount if needed to wait longer for package be ready
+                var retriesCount = 20;
                 var packageDownloadLink = string.Empty;
                 for (int i = 0; i < retriesCount; i++)
                 {
                     log.LogInformation($"Trying to get package link from download order: attempt #{i}");
+                    
+                    // wait and then check again
                     await Task.Delay(2000);
                     var downloadOrderResponse = await client.GetAsync(downloadOrderLocation);
                     var downloadOrderResult = await downloadOrderResponse.Content.ReadAsStringAsync();
