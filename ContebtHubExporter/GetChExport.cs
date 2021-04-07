@@ -1,5 +1,6 @@
 using System.IO;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -30,7 +31,7 @@ namespace ContebtHubExporter
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             dynamic data = JsonConvert.DeserializeObject(requestBody);
             var hostname = data?.hostname;
-            var xAuthToken = (data?.xAuthToken).ToString();
+            var oauthToken = (data?.oAuthToken).ToString();
             var toExport = data?.toExport;
             log.LogInformation("Extracted and initialized parameters");
 
@@ -42,7 +43,7 @@ namespace ContebtHubExporter
 
             using (var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = true, MaxAutomaticRedirections = 7 }))
             {
-                client.DefaultRequestHeaders.Add("X-Auth-Token", xAuthToken);
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", oauthToken);
                 var content = new StringContent(exportPayload, Encoding.UTF8, "application/json");
                 var response = await client.PostAsync($"{hostname}/api/package/export", content);
                 var downloadOrderLocation = response.Headers.Location;
