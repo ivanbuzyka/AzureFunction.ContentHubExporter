@@ -2,10 +2,13 @@
     "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "workflows_ch_exporter_name": {
+        "workflows_contentHub_exporter_name": {
             "value": null
         },
         "connections_box_externalid": {
+            "value": null
+        },
+        "connections_office365_externalid": {
             "value": null
         }
     }

@@ -2,12 +2,16 @@
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "workflows_ch_exporter_name": {
-            "defaultValue": "ch-exporter",
+        "workflows_contentHub_exporter_name": {
+            "defaultValue": "contentHub-exporter",
             "type": "String"
         },
         "connections_box_externalid": {
-            "defaultValue": "/subscriptions/azure_subscription_id/resourceGroups/resource_group_name/providers/Microsoft.Web/connections/box",
+            "defaultValue": "/subscriptions/subscription-id/resourceGroups/resource-group-name/providers/Microsoft.Web/connections/box",
+            "type": "String"
+        },
+        "connections_office365_externalid": {
+            "defaultValue": "/subscriptions/subscription-id/resourceGroups/resource-group-name/providers/Microsoft.Web/connections/office365",
             "type": "String"
         }
     },
@@ -16,7 +20,7 @@
         {
             "type": "Microsoft.Logic/workflows",
             "apiVersion": "2017-07-01",
-            "name": "[parameters('workflows_ch_exporter_name')]",
+            "name": "[parameters('workflows_contentHub_exporter_name')]",
             "location": "westeurope",
             "properties": {
                 "state": "Enabled",
@@ -32,8 +36,8 @@
                     "triggers": {
                         "Recurrence": {
                             "recurrence": {
-                                "frequency": "Hour",
-                                "interval": 12,
+                                "frequency": "Day",
+                                "interval": 1,
                                 "timeZone": "W. Europe Standard Time"
                             },
                             "type": "Recurrence"
@@ -42,13 +46,13 @@
                     "actions": {
                         "Create_file:_step_1": {
                             "runAfter": {
-                                "Step_1:_POST_export_(schema)": [
+                                "Step_1:_POST_export_(schema,_option_lists)": [
                                     "Succeeded"
                                 ]
                             },
                             "type": "ApiConnection",
                             "inputs": {
-                                "body": "@body('Step_1:_POST_export_(schema)')",
+                                "body": "@body('Step_1:_POST_export_(schema,_option_lists)')",
                                 "host": {
                                     "connection": {
                                         "name": "@parameters('$connections')['box']['connectionId']"
@@ -57,7 +61,7 @@
                                 "method": "post",
                                 "path": "/datasets/default/files",
                                 "queries": {
-                                    "folderPath": "/temp/folder export/@{variables('folderName')}",
+                                    "folderPath": "/temp/contentHub export/@{variables('folderName')}",
                                     "name": "entityDefinition-optionList.zip",
                                     "queryParametersSingleEncoded": true
                                 }
@@ -80,7 +84,7 @@
                                 "method": "post",
                                 "path": "/datasets/default/files",
                                 "queries": {
-                                    "folderPath": "/temp/folder export/@{variables('folderName')}",
+                                    "folderPath": "/temp/contentHub export/@{variables('folderName')}",
                                     "name": "triggers-scripts-stateFlows.zip",
                                     "queryParametersSingleEncoded": true
                                 }
@@ -103,7 +107,7 @@
                                 "method": "post",
                                 "path": "/datasets/default/files",
                                 "queries": {
-                                    "folderPath": "/temp/folder export/@{variables('folderName')}",
+                                    "folderPath": "/temp/contentHub export/@{variables('folderName')}",
                                     "name": "exportProfiles-mediaProcessing-Policies-renditionLinks-Settings.zip",
                                     "queryParametersSingleEncoded": true
                                 }
@@ -126,15 +130,62 @@
                                 "method": "post",
                                 "path": "/datasets/default/files",
                                 "queries": {
-                                    "folderPath": "/temp/folder export/@{variables('folderName')}",
+                                    "folderPath": "/temp/contentHub export/@{variables('folderName')}",
                                     "name": "portalPages.zip",
                                     "queryParametersSingleEncoded": true
                                 }
                             }
                         },
+                        "Initialize_ExporterFunctionUrl": {
+                            "runAfter": {
+                                "Initialize_folder_name": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "ExporterFunctionUrl",
+                                        "type": "string",
+                                        "value": "https://hostname-of-azurefunction.azurewebsites.net/api/GetChExport?code=azure-function-auth-code"
+                                    }
+                                ]
+                            }
+                        },
+                        "Initialize_api_password": {
+                            "runAfter": {
+                                "Initialize_api_username": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "api_password",
+                                        "type": "string",
+                                        "value": "content-hub-user-password"
+                                    }
+                                ]
+                            }
+                        },
+                        "Initialize_api_username": {
+                            "runAfter": {},
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "api_username",
+                                        "type": "string",
+                                        "value": "content-hub-user-name"
+                                    }
+                                ]
+                            }
+                        },
                         "Initialize_folder_name": {
                             "runAfter": {
-                                "Initialize_hostname": [
+                                "Initialize_oauth_token": [
                                     "Succeeded"
                                 ]
                             },
@@ -151,7 +202,7 @@
                         },
                         "Initialize_hostname": {
                             "runAfter": {
-                                "Initialize_x-auth-token": [
+                                "Initialize_oauth_client_id": [
                                     "Succeeded"
                                 ]
                             },
@@ -161,14 +212,14 @@
                                     {
                                         "name": "ch-hostname",
                                         "type": "string",
-                                        "value": "https://url-of-content-hub-instance"
+                                        "value": "https://content-hub-hostname"
                                     }
                                 ]
                             }
                         },
-                        "Initialize_variable": {
+                        "Initialize_oauth_client_id": {
                             "runAfter": {
-                                "Initialize_folder_name": [
+                                "Initialize_api_password": [
                                     "Succeeded"
                                 ]
                             },
@@ -176,29 +227,136 @@
                             "inputs": {
                                 "variables": [
                                     {
-                                        "name": "ExporterFunctionUrl",
+                                        "name": "oauth_client_id",
                                         "type": "string",
-                                        "value": "https://url-of-azure-function.azurewebsites.net/api/GetChExport?code=azurefunctiontoken"
+                                        "value": "oauth-client-id-here"
                                     }
                                 ]
                             }
                         },
-                        "Initialize_x-auth-token": {
-                            "runAfter": {},
+                        "Initialize_oauth_client_secret": {
+                            "runAfter": {
+                                "Initialize_hostname": [
+                                    "Succeeded"
+                                ]
+                            },
                             "type": "InitializeVariable",
                             "inputs": {
                                 "variables": [
                                     {
-                                        "name": "x-auth-token",
+                                        "name": "oauth_client_secret",
                                         "type": "string",
-                                        "value": "content-hub-x-auth-token"
+                                        "value": "oauth-client-secret-here"
                                     }
                                 ]
                             }
                         },
-                        "Step_1:_POST_export_(schema)": {
+                        "Initialize_oauth_token": {
                             "runAfter": {
-                                "Initialize_variable": [
+                                "Parse_oauth_response": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "oauth_token",
+                                        "type": "string",
+                                        "value": "@body('Parse_oauth_response')?['access_token']"
+                                    }
+                                ]
+                            }
+                        },
+                        "Initialize_oauth_token_request_parameters": {
+                            "runAfter": {
+                                "Initialize_oauth_client_secret": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "oauth_token_request_parameters",
+                                        "type": "string",
+                                        "value": "grant_type=password&username=@{variables('api_username')}&password=@{variables('api_password')}&client_id=@{variables('oauth_client_id')}&client_secret=@{variables('oauth_client_secret')}"
+                                    }
+                                ]
+                            }
+                        },
+                        "Parse_oauth_response": {
+                            "runAfter": {
+                                "Request_oauth_token": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ParseJson",
+                            "inputs": {
+                                "content": "@body('Request_oauth_token')",
+                                "schema": {
+                                    "properties": {
+                                        "access_token": {
+                                            "type": "string"
+                                        },
+                                        "expires_in": {
+                                            "type": "integer"
+                                        },
+                                        "refresh_token": {
+                                            "type": "string"
+                                        },
+                                        "scope": {
+                                            "type": "string"
+                                        },
+                                        "token_type": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "Request_oauth_token": {
+                            "runAfter": {
+                                "Initialize_oauth_token_request_parameters": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Http",
+                            "inputs": {
+                                "body": "@variables('oauth_token_request_parameters')",
+                                "headers": {
+                                    "Content-Type": "application/x-www-form-urlencoded"
+                                },
+                                "method": "POST",
+                                "uri": "@{variables('ch-hostname')}/oauth/token"
+                            }
+                        },
+                        "Send_notification": {
+                            "runAfter": {
+                                "Create_file:_step_4": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "body": {
+                                    "Body": "<p>The automatic export has been executed, following files are saved into the Box folder:<br>\n1. @{body('Create_file:_step_1')?['Path']}&nbsp;<br>\n2. @{body('Create_file:_step_2')?['Path']}<br>\n3. @{body('Create_file:_step_3')?['Path']}<br>\n4. @{body('Create_file:_step_4')?['Path']}</p>",
+                                    "Subject": "[[[contentHub-Automation] Export is created",
+                                    "To": "someemail@mailserver.com"
+                                },
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['office365']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "path": "/v2/Mail"
+                            }
+                        },
+                        "Step_1:_POST_export_(schema,_option_lists)": {
+                            "runAfter": {
+                                "Initialize_ExporterFunctionUrl": [
                                     "Succeeded"
                                 ]
                             },
@@ -207,13 +365,16 @@
                                 "body": {
                                     "hostname": " @{variables('ch-hostname')}",
                                     "include_system_owned": false,
+                                    "oAuthToken": "@{variables('oauth_token')}",
                                     "toExport": [
                                         "schema",
                                         "option_lists"
-                                    ],
-                                    "xAuthToken": " @{variables('x-auth-token')}"
+                                    ]
                                 },
                                 "method": "POST",
+                                "retryPolicy": {
+                                    "type": "none"
+                                },
                                 "uri": "@variables('ExporterFunctionUrl')"
                             }
                         },
@@ -228,14 +389,17 @@
                                 "body": {
                                     "hostname": " @{variables('ch-hostname')}",
                                     "include_system_owned": false,
+                                    "oAuthToken": "@{variables('oauth_token')}",
                                     "toExport": [
                                         "scripts",
                                         "state_flows",
                                         "triggers"
-                                    ],
-                                    "xAuthToken": " @{variables('x-auth-token')}"
+                                    ]
                                 },
                                 "method": "POST",
+                                "retryPolicy": {
+                                    "type": "none"
+                                },
                                 "uri": "@variables('ExporterFunctionUrl')"
                             }
                         },
@@ -250,16 +414,19 @@
                                 "body": {
                                     "hostname": " @{variables('ch-hostname')}",
                                     "include_system_owned": false,
+                                    "oAuthToken": "@{variables('oauth_token')}",
                                     "toExport": [
                                         "export_profiles",
                                         "media_processing_sets",
                                         "policies",
                                         "rendition_links",
                                         "settings"
-                                    ],
-                                    "xAuthToken": " @{variables('x-auth-token')}"
+                                    ]
                                 },
                                 "method": "POST",
+                                "retryPolicy": {
+                                    "type": "none"
+                                },
                                 "uri": "@variables('ExporterFunctionUrl')"
                             }
                         },
@@ -274,12 +441,15 @@
                                 "body": {
                                     "hostname": " @{variables('ch-hostname')}",
                                     "include_system_owned": false,
+                                    "oAuthToken": "@{variables('oauth_token')}",
                                     "toExport": [
                                         "portal_pages"
-                                    ],
-                                    "xAuthToken": " @{variables('x-auth-token')}"
+                                    ]
                                 },
                                 "method": "POST",
+                                "retryPolicy": {
+                                    "type": "none"
+                                },
                                 "uri": "@variables('ExporterFunctionUrl')"
                             }
                         }
@@ -292,7 +462,12 @@
                             "box": {
                                 "connectionId": "[parameters('connections_box_externalid')]",
                                 "connectionName": "box",
-                                "id": "/subscriptions/azure_subscription_id/providers/Microsoft.Web/locations/westeurope/managedApis/box"
+                                "id": "/subscriptions/subscription-id/providers/Microsoft.Web/locations/westeurope/managedApis/box"
+                            },
+                            "office365": {
+                                "connectionId": "[parameters('connections_office365_externalid')]",
+                                "connectionName": "office365",
+                                "id": "/subscriptions/subscription-id/providers/Microsoft.Web/locations/westeurope/managedApis/office365"
                             }
                         }
                     }
